@@ -43,15 +43,18 @@ class ObjtrackDataset(Dataset):
             transform: train_transform or eval_transform or prediction_transform
         """
         self.class_dict = {
-            'DontCare': -1,
-            'Pedestrian': 0,
-            'Car': 1,
-            'Cyclist': 2,
-            'Van': 3,
-            'Truck': 4,
-            'Person': 5,
-            'Tram': 6,
-            'Misc': 7
+            'Ignored regions': 0,
+            'Pedestrian': 1,
+            'People': 2,
+            'Cyclist': 3,
+            'Car': 4,
+            'Van': 5,
+            'Truck': 6,
+            'Tricycle': 7,
+            'Awning-tricycle': 8,
+            'bus': 9,
+            'motor': 10,
+            'others': 11
         }
         self.images_dir = os.path.join(data_root, 'images')
         self.labels_dir = os.path.join(data_root, 'labels')
@@ -70,36 +73,39 @@ class ObjtrackDataset(Dataset):
                 lines = f.readlines()
                 for line in lines:
                     labels = line.split()
-                    if labels[1] == '-1': # DontCare
+                    if labels[7] == '0': # DontCare
                         continue
                     frame_id = labels[0]
                     # already has info for this frame
                     if len(img_infos[frames_dir]) >= int(frame_id) + 1:
                         info = img_infos[frames_dir][int(frame_id)]
                         info['ann']['track_id'] = np.append(info['ann']['track_id'], int(labels[1]))
-                        info['ann']['bboxes'] = np.vstack((info['ann']['bboxes'], np.array(labels[6:10], dtype=np.float32)))
-                        info['ann']['labels'] = np.append(info['ann']['labels'], int(self.class_dict[labels[2]]+1))
-                        info['ann']['truncated'] = np.append(info['ann']['truncated'], int(labels[3]))
-                        info['ann']['occluded'] = np.append(info['ann']['occluded'], int(labels[4]))
-                        info['ann']['alpha'] = np.append(info['ann']['alpha'], float(labels[5]))
-                        info['ann']['dimensions'] = np.vstack((info['ann']['dimensions'], np.array(labels[10:13], dtype=np.float32)))
-                        info['ann']['location'] = np.vstack((info['ann']['location'], np.array(labels[13:16], dtype=np.float32)))
-                        info['ann']['rotation_y'] = np.append(info['ann']['rotation_y'], float(labels[16]))
+                        bbox_list = [labels[2], labels[3], labels[2]+labels[4], labels[3]+labels[5]] #converting to required format
+                        info['ann']['bboxes'] = np.vstack((info['ann']['bboxes'], np.array(bbox_list, dtype=np.float32)))
+                        info['ann']['labels'] = np.append(info['ann']['labels'], int(self.class_dict[labels[7]]+1))
+                        info['ann']['truncated'] = np.append(info['ann']['truncated'], int(labels[8]))
+                        info['ann']['occluded'] = np.append(info['ann']['occluded'], int(labels[9]))
+                        # info['ann']['alpha'] = np.append(info['ann']['alpha'], float(labels[5]))
+                        # info['ann']['dimensions'] = np.vstack((info['ann']['dimensions'], np.array(labels[10:13], dtype=np.float32)))
+                        # info['ann']['location'] = np.vstack((info['ann']['location'], np.array(labels[13:16], dtype=np.float32)))
+                        # info['ann']['rotation_y'] = np.append(info['ann']['rotation_y'], float(labels[16]))
 
                     else:
                         info = {}
                         info['frame_id'] = int(frame_id)
                         info['filename'] = os.path.join(frames_dir_path, frame_id.zfill(6)+'.png')
+                        bbox_list = [labels[2], labels[3], labels[2] + labels[4],
+                                     labels[3] + labels[5]]  # converting to required format
                         info['ann'] = dict(
                             track_id=np.array(labels[1], dtype=np.int64),
-                            bboxes=np.array(labels[6:10], dtype=np.float32),
-                            labels=np.array(self.class_dict[labels[2]]+1, dtype=np.int64),                           
-                            truncated=np.array(labels[3], dtype=np.int64),
-                            occluded=np.array(labels[4], dtype=np.int64),
-                            alpha=np.array(labels[5], dtype=np.float32),
-                            dimensions=np.array(labels[10:13], dtype=np.float32),
-                            location=np.array(labels[13:16], dtype=np.float32),
-                            rotation_y=np.array(labels[16], dtype=np.float32),    
+                            bboxes=np.array(bbox_list, dtype=np.float32),
+                            labels=np.array(self.class_dict[labels[7]]+1, dtype=np.int64),
+                            truncated=np.array(labels[8], dtype=np.int64),
+                            occluded=np.array(labels[9], dtype=np.int64),
+                            # alpha=np.array(labels[5], dtype=np.float32),
+                            # dimensions=np.array(labels[10:13], dtype=np.float32),
+                            # location=np.array(labels[13:16], dtype=np.float32),
+                            # rotation_y=np.array(labels[16], dtype=np.float32),
                             )
                         img_infos[frames_dir].append(info)
         
@@ -108,7 +114,6 @@ class ObjtrackDataset(Dataset):
 
     def __len__(self):
         return len(self.track_infos)
-        
 
     def __getitem__(self, index):
         """
@@ -121,7 +126,7 @@ class ObjtrackDataset(Dataset):
 
         img_path = self.track_infos[index]['filename']
         if not osp.exists(img_path):
-            logging.error("Cannot found image data: " + img_path)
+            logging.error("Cannot find image data: " + img_path)
             raise FileNotFoundError
         img = cv2.imread(img_path, cv2.IMREAD_COLOR)
         self.track_infos[index]['height'], self.track_infos[index]['width'] = img.shape[:2]
