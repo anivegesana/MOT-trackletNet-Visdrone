@@ -8,6 +8,7 @@ import json
 import numpy as np
 import os
 import os.path as osp
+import logging
 
 import torch
 from torch.utils.data import Dataset
@@ -56,8 +57,8 @@ class ObjtrackDataset(Dataset):
             'motor': 10,
             'others': 11
         }
-        self.images_dir = os.path.join(data_root, 'images')
-        self.labels_dir = os.path.join(data_root, 'labels')
+        self.images_dir = os.path.join(data_root, 'sequences')
+        self.labels_dir = os.path.join(data_root, 'annotations')
         self.transform = transform
         self.track_infos = []
         
@@ -72,7 +73,9 @@ class ObjtrackDataset(Dataset):
             with open(gt_path, 'r') as f:
                 lines = f.readlines()
                 for line in lines:
-                    labels = line.split()
+                    # print(line)
+                    labels = list(line.split(','))
+                    # print(labels[4])
                     if labels[7] == '0': # DontCare
                         continue
                     frame_id = labels[0]
@@ -82,7 +85,7 @@ class ObjtrackDataset(Dataset):
                         info['ann']['track_id'] = np.append(info['ann']['track_id'], int(labels[1]))
                         bbox_list = [labels[2], labels[3], labels[2]+labels[4], labels[3]+labels[5]] #converting to required format
                         info['ann']['bboxes'] = np.vstack((info['ann']['bboxes'], np.array(bbox_list, dtype=np.float32)))
-                        info['ann']['labels'] = np.append(info['ann']['labels'], int(self.class_dict[labels[7]]+1))
+                        info['ann']['labels'] = np.append(info['ann']['labels'], int(labels[7]))
                         info['ann']['truncated'] = np.append(info['ann']['truncated'], int(labels[8]))
                         info['ann']['occluded'] = np.append(info['ann']['occluded'], int(labels[9]))
                         # info['ann']['alpha'] = np.append(info['ann']['alpha'], float(labels[5]))
@@ -93,13 +96,13 @@ class ObjtrackDataset(Dataset):
                     else:
                         info = {}
                         info['frame_id'] = int(frame_id)
-                        info['filename'] = os.path.join(frames_dir_path, frame_id.zfill(6)+'.png')
+                        info['filename'] = os.path.join(frames_dir_path, frame_id.zfill(7)+'.jpg')
                         bbox_list = [labels[2], labels[3], labels[2] + labels[4],
                                      labels[3] + labels[5]]  # converting to required format
                         info['ann'] = dict(
                             track_id=np.array(labels[1], dtype=np.int64),
                             bboxes=np.array(bbox_list, dtype=np.float32),
-                            labels=np.array(self.class_dict[labels[7]]+1, dtype=np.int64),
+                            labels=np.array(labels[7], dtype=np.int64),
                             truncated=np.array(labels[8], dtype=np.int64),
                             occluded=np.array(labels[9], dtype=np.int64),
                             # alpha=np.array(labels[5], dtype=np.float32),
@@ -157,6 +160,6 @@ class ObjtrackDataset(Dataset):
 
 
 if __name__ == "__main__":
-    dataset = ObjtrackDataset('/Users/chenmingfei/Downloads/Hwang_Papers/TNT_pytorch/data/training')
-    data = dataset.__getitem__(154)
+    dataset = ObjtrackDataset('C:\spring2020\cs231n\project\dataset')
+    data = dataset.__getitem__(1)
     print(data)
