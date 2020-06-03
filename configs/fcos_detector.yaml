@@ -8,7 +8,7 @@ CUDNN:
 DATASET:
   FILE: ObjtrackDataset
   NAME: ObjtrackDataset
-  ROOT: '/mnt/ht/students/cmf/TNT_pytorch/data'
+  ROOT: '/content/drive/Shared drives/CS 231N Project/VisDrone2019-MOT-train'
   IMG_NUM_PER_GPU: 2
   MEAN: [102.9801, 115.9465, 122.7717]
   STD: [1, 1, 1]
